@@ -1,55 +1,80 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-function App() {
+const ChatApp = () => {
+  const [socket, setSocket] = useState(null);
+  const [connected, setConnected] = useState(false);
+  const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState('');
-  const webSocketURL = 'wss://jra5lrv0ne.execute-api.us-west-1.amazonaws.com/websocket-tf-dev-stage/';
+  const apiKey = 'your_api_key';
+  const url = 'wss://ke7cqp0zw6.execute-api.us-west-1.amazonaws.com/websocket-tf-dev-stage'
 
-  useEffect(() => {
-    const ws = new WebSocket(webSocketURL);
+  const handleConnect = () => {
+    if (!socket) {
+      // Connect to WebSocket API
+      const newSocket = new WebSocket(`${url}/?api_key=${apiKey}`);
 
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-    };
+      newSocket.onopen = () => {
+        setSocket(newSocket);
+        setConnected(true);
+      };
 
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      setMessages((prevMessages) => [...prevMessages, message]);
-    };
+      newSocket.onmessage = (event) => {
+        setMessages((prevMessages) => [...prevMessages, { text: event.data, type: 'received' }]);
+      };
 
-    ws.onclose = () => {
-      console.log('WebSocket closed');
-    };
+      newSocket.onclose = () => {
+        setSocket(null);
+        setConnected(false);
+      };
+    }
+  };
 
-    return () => {
-      ws.close();
-    };
-  }, []);
+  const handleDisconnect = () => {
+    if (socket) {
+      socket.close();
+    }
+  };
 
-  const handleMessageSend = () => {
-    const ws = new WebSocket(webSocketURL);
-    ws.onopen = () => {
-      ws.send(inputMessage);
-      setInputMessage('');
-    };
+  const handleMessageChange = (event) => {
+    setMessage(event.target.value);
+  };
+
+  const handleSendMessage = () => {
+    if (socket && message.trim() !== '') {
+      socket.send(message);
+      setMessages((prevMessages) => [...prevMessages, { text: message, type: 'sent' }]);
+      setMessage('');
+    }
   };
 
   return (
     <div>
-      <h1>WebSocket Chat App</h1>
-      <div>
-        {messages.map((message, index) => (
-          <div key={index}>{message}</div>
-        ))}
-      </div>
-      <input
-        type="text"
-        value={inputMessage}
-        onChange={(e) => setInputMessage(e.target.value)}
-      />
-      <button onClick={handleMessageSend}>Send</button>
+      <h1>Chat App</h1>
+      {!connected ? (
+        <div>
+          <button onClick={handleConnect}>Connect</button>
+        </div>
+      ) : (
+        <div>
+          <div style={{ textAlign: 'left' }}>
+            {messages.map((msg, index) => (
+              <div key={index} style={{ textAlign: msg.type === 'sent' ? 'right' : 'left' }}>
+                {msg.text}
+              </div>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={message}
+            onChange={handleMessageChange}
+            placeholder="Type your message..."
+          />
+          <button onClick={handleSendMessage}>Send</button>
+          <button onClick={handleDisconnect}>Disconnect</button>
+        </div>
+      )}
     </div>
   );
-}
+};
 
-export default App;
+export default ChatApp;
